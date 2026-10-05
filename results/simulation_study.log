@@ -1,0 +1,18 @@
+seed 1/10 done
+seed 2/10 done
+seed 3/10 done
+seed 4/10 done
+seed 5/10 done
+seed 6/10 done
+seed 7/10 done
+seed 8/10 done
+seed 9/10 done
+seed 10/10 done
+                                                    mean_log_hr  truth  empirical_sd  coverage  runs   bias
+estimand          method                                                                                   
+2L therapy (null) Landmark (6 months)                    -0.002   0.00         0.049       1.0    10 -0.002
+                  Naive (ever-treated, from index)       -0.600   0.00         0.046       0.0    10 -0.600
+                  Time-varying exposure Cox              -0.022   0.00         0.045       1.0    10 -0.022
+IO+chemo vs chemo IPTW                                   -0.289  -0.35         0.080       0.9    10  0.061
+                  Multivariable Cox                      -0.346  -0.35         0.079       1.0    10  0.004
+                  Unadjusted                             -0.356  -0.35         0.089       0.8    10 -0.006

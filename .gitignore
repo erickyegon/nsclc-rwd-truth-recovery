@@ -1,0 +1,19 @@
+# Generated synthetic data (reproduce with: python run_pipeline.py --regen)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

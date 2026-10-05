@@ -1,0 +1,6 @@
+check,n_flagged,action
+Exact duplicate medication rows,1049,dropped
+Encounters dated after recorded death,7,dropped
+Medication start before birth,0,flagged
+Medication STOP before START,0,flagged
+Patients with antineoplastic before NSCLC diagnosis (mis-dated),12,excluded in cohort step

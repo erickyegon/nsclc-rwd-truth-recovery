@@ -1,0 +1,10 @@
+step,n_remaining,n_excluded
+All patients in EHR extract,6000,0
+"NSCLC diagnosis (SNOMED 254637007), no SCLC",3655,2345
+Age >= 18 at diagnosis,3655,0
+Advanced disease (stage III-IV) at diagnosis,2626,1029
+No prior other primary cancer (breast/colorectal),2449,177
+Received systemic anticancer therapy (>=1 derived line),1710,739
+Therapy not dated before diagnosis (date integrity),1700,10
+First-line start within 90 d of diagnosis,1619,81
+At least 1 day of follow-up after index,1615,4

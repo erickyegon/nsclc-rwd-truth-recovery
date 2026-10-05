@@ -1,0 +1,101 @@
+{
+  "raw_rows": {
+    "patients": 6000,
+    "conditions": 17593,
+    "medications": 53498,
+    "observations": 9815,
+    "encounters": 43682,
+    "procedures": 866
+  },
+  "lot_validation": {
+    "patients_compared": 1821,
+    "sequence_exact_match": 0.9807797913234486,
+    "n_lines_agreement": 0.9807797913234486,
+    "line1_regimen_accuracy": 0.9873695771554091,
+    "line_start_within_7d": 0.9979533360622186
+  },
+  "cohort_n": 1615,
+  "km_os_logrank_p": 1.8728284655397762e-10,
+  "comparative_cohort": {
+    "n": 759,
+    "n_io_chemo": 427,
+    "n_chemo": 332,
+    "events": 648
+  },
+  "io_vs_chemo": {
+    "Unadjusted": {
+      "hr": 0.705,
+      "hr_low": 0.603,
+      "hr_high": 0.824,
+      "log_hr": -0.35,
+      "true_hr": 0.705
+    },
+    "Multivariable Cox": {
+      "hr": 0.777,
+      "hr_low": 0.661,
+      "hr_high": 0.913,
+      "log_hr": -0.252,
+      "true_hr": 0.705
+    },
+    "IPTW (stabilised, trimmed 1/99)": {
+      "hr": 0.787,
+      "hr_low": 0.671,
+      "hr_high": 0.923,
+      "log_hr": -0.24,
+      "true_hr": 0.705
+    }
+  },
+  "e_value_multivariable": {
+    "e_value_point": 1.6677174897653342,
+    "e_value_ci": 1.3273493177735858
+  },
+  "max_abs_smd": {
+    "before": 0.18704354204209395,
+    "after": 0.011516950659497371
+  },
+  "ps_overlap": {
+    "ps_min": 0.25560022743218735,
+    "ps_max": 0.8183945713346598,
+    "weight_max": 1.7697760766508261
+  },
+  "ph_test_min_p": 0.0009388472631838014,
+  "three_arm": {
+    "io_chemo": {
+      "log_hr": -0.263,
+      "se": 0.082,
+      "hr": 0.769,
+      "hr_low": 0.654,
+      "hr_high": 0.903,
+      "p": 0.001
+    },
+    "io_mono": {
+      "log_hr": -0.285,
+      "se": 0.133,
+      "hr": 0.752,
+      "hr_low": 0.579,
+      "hr_high": 0.976,
+      "p": 0.032
+    }
+  },
+  "truth_recovery_coverage": "9/9",
+  "immortal_time": [
+    {
+      "method": "Naive (ever-treated, from index)",
+      "hr": 0.545,
+      "hr_low": 0.486,
+      "hr_high": 0.613
+    },
+    {
+      "method": "Landmark (6 months)",
+      "hr": 0.982,
+      "hr_low": 0.837,
+      "hr_high": 1.153
+    },
+    {
+      "method": "Time-varying exposure Cox",
+      "hr": 0.927,
+      "hr_low": 0.82,
+      "hr_high": 1.049
+    }
+  ]
+}
