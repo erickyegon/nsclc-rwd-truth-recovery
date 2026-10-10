@@ -114,3 +114,7 @@ parameter-sensitive by nature. See [docs/methods.md](docs/methods.md) §7.
 ## Possible extensions
 Multiple imputation of ECOG/PD-L1 · competing-risk models for TTNT · target-trial-emulation framing with clone-censor-weight ·
 OMOP CDM mapping · running the same code on a real, access-controlled oncology dataset (e.g. SEER-Medicare, Flatiron) under the proper data-use agreement.
+
+---
+
+Author: Erick Kiprotich Yegon, epidemiologist and data scientist (real-world evidence, HEOR, causal inference) · Portfolio: https://erickyegon.github.io · LinkedIn: https://linkedin.com/in/erickyegon
