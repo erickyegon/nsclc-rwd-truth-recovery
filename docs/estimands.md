@@ -99,6 +99,50 @@ Chosen by linear interpolation: **moderate gamma = 0.307** (target bias -0.10), 
 
 Rule fixed in advance: moderate = smallest multiplier whose 1st-percentile PS is below 0.10 (**2.0**); severe = smallest multiplier with at least 10% of patients outside [0.05, 0.95] (**4.0**).
 
-## 8. Deviations
+## 8. Planned results: tables, figures and reading rules (written before any P1-P4 result was read)
 
-None yet.
+All tables are produced by one script from the replicate-level files `results/phase1/rows_<cell>.csv`, `diag_<cell>.csv` and the hash-named truth files. Nothing is typed by hand. Every table carries the Monte Carlo SE of each number in brackets.
+
+**Tables**
+
+| # | Table | Rows x columns | Source |
+|---|---|---|---|
+| T1 | Truth by cell | cell x (E2 24-month, E2 12-month, E3 12/24-month, marginal log-HR, conditional log-HR, truth Monte Carlo SE, analytic cross-check, population size, hash) | `truth_<cell>_<hash>.json` |
+| T2 | Number at risk | cell x arm x {12, 24 months}: median, 10th percentile, minimum, replicates below 20 | `diag_<cell>.csv` |
+| T3 | **Primary: E2 at 24 months** | cell x estimator (KM, IPTW-KM, g-computation, AIPW): bias, empirical SE, model-SE ratio, 95% coverage, rejection rate, MSE, median CI width, failure rate | `summary_<cell>.csv` |
+| T4 | Secondary: E2 at 12 months and E3 | same columns, same estimators plus KM survival difference | `summary_<cell>.csv` |
+| T5 | Secondary: hazard-ratio estimators | cell x {multivariable Cox vs E1, unadjusted and IPTW Cox vs E4}: same columns | `summary_<cell>.csv` |
+| T6 | S1 calibration check | strong and moderate cells: unadjusted log-HR bias achieved in the main runs vs the -0.10 / -0.25 targets (mean over replicates, with Monte Carlo SE) | `rows_S1_*.csv`, `rows_S0.csv` |
+| T7 | S2 positivity diagnostics | cell: median minimum PS and median share of patients with PS outside [0.05, 0.95] (the minimum PS and the share are what `diag_<cell>.csv` records) | `diag_<cell>.csv` |
+| T8 | Truth-precision check | cell x estimator: truth Monte Carlo SE divided by empirical SE; any value at or above 0.10 is flagged | `summary_<cell>.csv` |
+
+**Figures** (static PNG, one estimator colour each, axes labelled in months for E2; the same estimator order in every panel)
+
+| # | Figure | Content |
+|---|---|---|
+| F1 | At-risk by arm | Distribution of the number at risk at 24 months per arm across replicates, with the 20-patient line |
+| F2 | Bias | Dot plot of bias for each estimator and cell with +/-1.96 Monte Carlo SE bars; zero line |
+| F3 | Coverage | Coverage per estimator and cell with +/-1.96 Monte Carlo SE bars against the nominal 95% |
+| F4 | Model-SE ratio | Ratio with Monte Carlo SE bars; reference line at 1 |
+| F5 | Null cells | Rejection rate in the null cells (S3 null) against 5%, with Monte Carlo SE bars |
+| F6 | Distribution of estimates | Violin / strip plot of the 24-month RMST estimates per estimator against the truth line, S0 and the strongest stress cell of each scenario |
+| F7 | Positivity | S2: model-SE ratio and coverage of IPTW-KM against the share of patients outside [0.05, 0.95] |
+
+**Reading rules (reporting conventions, not hypothesis tests; no cell is called a pass or a fail on one metric)**
+
+- *Bias* is described as "consistent with zero" when |bias| < 2 x its Monte Carlo SE; otherwise the signed value is quoted with its SE. Practical size is judged against the empirical SE: |bias| below one-tenth of the empirical SE is negligible by that yardstick.
+- *Coverage* is described as "consistent with nominal" when 95% lies within 2 Monte Carlo SE of the estimate. Otherwise the shortfall or excess is quoted. Coverage among successful replicates is shown beside the failure-inclusive figure.
+- *Model-SE ratio* within 0.9 to 1.1, allowing for its Monte Carlo SE, is described as "standard errors about right"; below 0.9 as "standard errors too small", above 1.1 as "too large".
+- *Null cell*: the rejection rate is compared with 5% using its Monte Carlo SE.
+- *Failures*: any estimator-cell with more than 5% failures is flagged and its other metrics are labelled "among successes".
+- *Truth precision*: any estimator-cell where the truth Monte Carlo SE is at least 10% of the empirical SE is flagged, and its bias is not interpreted until the truth population is enlarged.
+- Results are reported whichever way they fall, including cases in which a method that the earlier 10-seed table suggested was fine (for example the unadjusted estimator) misses under larger R.
+- Questions the P1-P4 results are meant to answer: (1) does each RMST estimator recover E2 at baseline, with honest intervals; (2) does the answer change when assignment is confounded through all measured prognostic variables (S1), when positivity is stressed (S2), and when the true effect is null, larger or harmful (S3); (3) does the earlier IPTW "bias" correspond to the marginal HR truth (E4) rather than the conditional one (E1).
+
+## 9. Deviations and known issues
+
+| Date | Item | Detail |
+|---|---|---|
+| 2026-10-18 | Stale S0 truth file (fixed) | A 3-chunk smoke-test truth (2,519 patients) was saved as `truth_S0.json` and skipped by the driver's "file exists" check. Caught before any summary used it; rebuilt at 40 chunks. Truth files are now named `truth_<cell>_<hash>.json`, where the hash covers scenario settings (with calibrated values), number and size of chunks, Monte Carlo draws, seed base and the generator parameters; `summarise` refuses a file whose hash does not match, and a test checks that the sample size changes the name. All eight truths are being rebuilt under the new names with the same seeds and will be compared with the earlier files; the outcome of that comparison is recorded in the next row once it exists. |
+| 2026-10-18 | Seed disjointness | `seed_registry()` assigns every pilot, truth and main seed from the same functions the code uses; `test_seed_purposes_never_overlap` checks that burned, pilot (LP, confounding, positivity), truth and main seeds are pairwise disjoint for up to 1,000 replicates and 99 chunks per purpose. |
+| 2026-10-18 | Known issue: bootstrap stream shared the data seed (check pending, rule fixed in advance) | In `replicate()` the bootstrap generator is `default_rng(seed)`, the same integer that seeds the data generator, so the two streams start identically. The bootstrap only resamples cohort rows to obtain standard errors for IPTW-KM and g-computation RMST (24 and 12 months). **Check:** for the first 100 main seeds of cells S0 and S1_strong, the cohort is regenerated and the four bootstrap-based estimators are run twice, once with the original stream and once with an independent stream `default_rng([seed, 1])`. Decision rule, fixed before running: P1-P4 stand if, for every estimator in both cells, (i) the point estimates are identical, (ii) the mean log ratio of standard errors (independent / original) is within 2 Monte Carlo SE of 0, and (iii) the paired difference in 95% coverage is within 2 Monte Carlo SE of 0 (SE from the paired differences). Otherwise the bootstrap step is rerun for P1-P4 with the independent stream. The result and the decision are recorded in the next row. |
