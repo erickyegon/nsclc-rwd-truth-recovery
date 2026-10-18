@@ -1,0 +1,56 @@
+{
+  "n_population": 32278,
+  "m_draws": 20,
+  "effect": 0.0,
+  "rmst_diff_24": 0.006679739215582245,
+  "rmst_diff_24_mcse": 0.013665232477886752,
+  "surv_diff_24": 0.00042598674019455956,
+  "surv_diff_24_mcse": 0.0006653501225879987,
+  "rmst_diff_12": 0.002626782871362414,
+  "rmst_diff_12_mcse": 0.006950980610280904,
+  "surv_diff_12": 0.00017504182415267354,
+  "surv_diff_12_mcse": 0.0008318713176508121,
+  "marginal_log_hr": -0.0027258006632151443,
+  "marginal_log_hr_se_approx": 0.0035203056832525084,
+  "conditional_log_hr": 0.0,
+  "rmst_diff_24_analytic": 0.0,
+  "rmst_diff_12_analytic": 0.0,
+  "opts": {
+    "io_chemo_effect": 0.0
+  },
+  "provenance": {
+    "hash": "91ce19731057",
+    "config": {
+      "cell": "S3_null",
+      "opts": {
+        "io_chemo_effect": 0.0
+      },
+      "chunks": 40,
+      "chunk_n": 6000,
+      "m_draws": 20,
+      "truth_seed0": 9000000,
+      "true_log_hr": {
+        "io_chemo_vs_chemo": -0.35,
+        "io_mono_vs_chemo": -0.3,
+        "osimertinib_vs_chemo_egfr": -0.9,
+        "erlotinib_vs_chemo_egfr": -0.5,
+        "age_per_year": 0.025,
+        "ecog_per_level": 0.3,
+        "stage4_vs_3": 0.45,
+        "brain_mets": 0.3,
+        "comorbidity_per_condition": 0.1,
+        "male": 0.15,
+        "squamous": 0.15,
+        "egfr_positive": -0.15,
+        "second_line_receipt": 0.0
+      },
+      "lp_mean": 0.8510367923036154,
+      "lp_sd": 0.4798917339599047,
+      "io_era_start": "2018-06-01",
+      "taus": [
+        24,
+        12
+      ]
+    }
+  }
+}

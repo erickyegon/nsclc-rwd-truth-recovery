@@ -164,3 +164,31 @@ def test_rmst_estimators_recover_known_truth_in_a_confounded_toy_problem():
         assert "failure" not in r, (name, r)
         assert abs(r["estimate"] - truth_val) < 3.5 * r["se"], (name, r, truth_val)
     assert abs(km["estimate"] - truth_val) > abs(gc["estimate"] - truth_val)   # confounding biases the unadjusted estimator more
+
+
+# ----------------------------------------------------------------------------- seeds and truth-file provenance
+def _scenario_study():
+    import importlib
+    import sys
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    return importlib.import_module("scenario_study")
+
+
+def test_seed_purposes_never_overlap():
+    reg = _scenario_study().seed_registry(max_R=1000, max_chunks=99)
+    names = list(reg)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            assert not (reg[a] & reg[b]), f"seed overlap between {a} and {b}: {sorted(reg[a] & reg[b])[:5]}"
+    assert len(reg["main"]) == 8 * 1000          # every main replicate of every cell has its own seed
+
+
+def test_truth_file_name_is_tied_to_settings_and_sample_size():
+    ss = _scenario_study()
+    h0, cfg0 = ss.truth_key("S0", 40)
+    assert ss.truth_key("S0", 40)[0] == h0                       # deterministic
+    assert ss.truth_key("S0", 3)[0] != h0                        # sample size changes the name (the stale 3-chunk bug)
+    assert ss.truth_key("S3_null", 40)[0] != h0                  # scenario settings change the name
+    assert h0 in ss.truth_path("S0", 40).name and cfg0["chunk_n"] == 6000

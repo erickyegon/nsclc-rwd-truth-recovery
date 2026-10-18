@@ -11,6 +11,7 @@ Earlier exploratory seeds (101, 102, 201-220, 301-308) are burned and never reus
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -61,6 +62,54 @@ def cell_opts(cell: str) -> dict:
 
 def seeds_for(cell: str, R: int) -> list[int]:
     return [1001 + 10_000 * CELL_ORDER.index(cell) + r for r in range(R)]
+
+
+# every seed used anywhere comes from one of these functions, so the registry below checks the real assignments
+BURNED = {101, 102, 5001, *range(201, 221), *range(301, 309)}          # exploratory runs before the design was locked
+GAMMA_GRID = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0)
+POSMULT_GRID = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+TRUTH_SEED0, TRUTH_CHUNK, TRUTH_DRAWS, TRUTH_CHUNKS_DEFAULT = 9_000_000, 6000, 20, 40
+
+
+def pilot_lp_seed(k):
+    return 7_100_000 + k
+
+
+def pilot_gamma_seed(g, k):
+    return 7_200_000 + int(g * 100) * 100 + k
+
+
+def pilot_pos_seed(m, k):
+    return 7_300_000 + int(m * 10) * 100 + k
+
+
+def truth_seed(cell, k):
+    return TRUTH_SEED0 + 1000 * CELL_ORDER.index(cell) + k
+
+
+def seed_registry(max_R=1000, max_chunks=99) -> dict[str, set]:
+    """All seeds by purpose. Used by tests/test_phase1.py to prove the purposes never overlap."""
+    return {
+        "burned": set(BURNED),
+        "pilot_lp": {pilot_lp_seed(k) for k in range(max_chunks)},
+        "pilot_gamma": {pilot_gamma_seed(g, k) for g in GAMMA_GRID for k in range(max_chunks)},
+        "pilot_positivity": {pilot_pos_seed(m, k) for m in POSMULT_GRID for k in range(max_chunks)},
+        "truth": {truth_seed(c, k) for c in CELL_ORDER for k in range(max_chunks)},
+        "main": {s for c in CELL_ORDER for s in seeds_for(c, max_R)},
+    }
+
+
+def truth_key(cell: str, chunks: int = TRUTH_CHUNKS_DEFAULT):
+    """Hash of everything that determines a truth file: scenario settings (with calibrated values), population size,
+    Monte Carlo draws, seed base, and the generator parameters the truth depends on."""
+    cfg = {"cell": cell, "opts": cell_opts(cell), "chunks": chunks, "chunk_n": TRUTH_CHUNK, "m_draws": TRUTH_DRAWS,
+           "truth_seed0": TRUTH_SEED0, "true_log_hr": C.TRUE_LOG_HR, "lp_mean": C.LP_MEAN, "lp_sd": C.LP_SD,
+           "io_era_start": C.IO_ERA_START, "taus": [24, 12]}
+    return hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).hexdigest()[:12], cfg
+
+
+def truth_path(cell: str, chunks: int = TRUTH_CHUNKS_DEFAULT) -> Path:
+    return OUT / f"truth_{cell}_{truth_key(cell, chunks)[0]}.json"
 
 
 # ----------------------------------------------------------------------------- shared pipeline helpers
@@ -147,7 +196,7 @@ def run(cell, R, workers, n, B):
 # ----------------------------------------------------------------------------- truth
 def _truth_chunk(args):
     seed, opts = args
-    c, tp = make_cohort(6000, seed, opts, keep_truth=True)
+    c, tp = make_cohort(TRUTH_CHUNK, seed, opts, keep_truth=True)
     j = tp.set_index("patient_id").loc[c.index.intersection(tp["patient_id"])]
     return j[["age", "male", "hist", "stage", "ecog", "n_comorb", "brain", "egfr"]]
 
@@ -155,23 +204,35 @@ def _truth_chunk(args):
 def build_truth(cell, chunks, workers):
     OUT.mkdir(parents=True, exist_ok=True)
     opts = cell_opts(cell)
-    seeds = [(9_000_000 + 1000 * CELL_ORDER.index(cell) + k, opts) for k in range(chunks)]
+    seeds = [(truth_seed(cell, k), opts) for k in range(chunks)]
     with Pool(workers) as p:
         parts = p.map(_truth_chunk, seeds)
     cov = pd.concat(parts, ignore_index=True)
     effect = opts.get("io_chemo_effect", TRUE_EFFECT)
-    res = truth.counterfactual_truth(cov, effect, m=20, seed=2026_0001 + CELL_ORDER.index(cell))
+    res = truth.counterfactual_truth(cov, effect, m=TRUTH_DRAWS, seed=2026_0001 + CELL_ORDER.index(cell))
     for tau in (24, 12):
         res[f"rmst_diff_{tau}_analytic"] = truth.analytic_rmst_diff(cov, effect, float(tau))
     res["opts"] = opts
-    (OUT / f"truth_{cell}.json").write_text(json.dumps(res, indent=2))
+    h, cfg = truth_key(cell, chunks)
+    res["provenance"] = {"hash": h, "config": cfg}
+    truth_path(cell, chunks).write_text(json.dumps(res, indent=2))
     print(json.dumps({k: res[k] for k in res if "rmst" in k or "n_pop" in k or "marginal" in k}, indent=1))
 
 
-def summarise(cell):
+def load_truth(cell, chunks=TRUTH_CHUNKS_DEFAULT) -> dict:
+    """Load the truth for the CURRENT scenario settings and sample size; refuse anything else."""
+    p = truth_path(cell, chunks)
+    if not p.exists():
+        raise SystemExit(f"no truth file for {cell} with the current settings (expected {p.name}); run `truth --cell {cell}`")
+    th = json.loads(p.read_text())
+    assert th["provenance"]["hash"] == truth_key(cell, chunks)[0], "truth file hash does not match its settings"
+    return th
+
+
+def summarise(cell, chunks=TRUTH_CHUNKS_DEFAULT):
     rows = pd.read_csv(OUT / f"rows_{cell}.csv")
     diag = pd.read_csv(OUT / f"diag_{cell}.csv")
-    th = json.loads((OUT / f"truth_{cell}.json").read_text())
+    th = load_truth(cell, chunks)
     s = metrics.summarise(rows, th)
     s.insert(0, "cell", cell)
     s.to_csv(OUT / f"summary_{cell}.csv", index=False)
@@ -200,16 +261,16 @@ def calibrate(workers, chunks=40):
     out = {}
     # (a) LP standardisation from the baseline target population (truth populations carry the true covariates)
     with Pool(workers) as p:
-        parts = p.map(_truth_chunk, [(7_100_000 + k, {}) for k in range(chunks)])
+        parts = p.map(_truth_chunk, [(pilot_lp_seed(k), {}) for k in range(chunks)])
     lp = truth.linear_predictor(pd.concat(parts, ignore_index=True))
     out["LP_MEAN"], out["LP_SD"] = float(lp.mean()), float(lp.std())
     print("LP mean/sd", out["LP_MEAN"], out["LP_SD"], flush=True)
     lpo = {"lp_mean": out["LP_MEAN"], "lp_sd": out["LP_SD"]}
     # (b) unadjusted-bias grid for confounding gamma (pooled pilot cohorts)
     grid = {}
-    for g in (0.0, 0.5, 1.0, 1.5, 2.0, 3.0):
+    for g in GAMMA_GRID:
         with Pool(workers) as p:
-            pooled = pd.concat(p.map(_pilot_chunk, [(7_200_000 + int(g * 100) * 100 + k, {"confounding_gamma": g, **lpo}) for k in range(chunks)]))
+            pooled = pd.concat(p.map(_pilot_chunk, [(pilot_gamma_seed(g, k), {"confounding_gamma": g, **lpo}) for k in range(chunks)]))
         est = float(CoxPHFitter().fit(pooled[["os_months", "event", "io"]], "os_months", "event").params_["io"])
         grid[g] = est
         print(f"gamma={g}: unadjusted log-HR {est:.3f}", flush=True)
@@ -221,9 +282,9 @@ def calibrate(workers, chunks=40):
     out["gamma_grid_unadjusted_loghr"] = grid
     # (c) positivity grid: min propensity and share of patients with PS outside [0.05, 0.95]
     pgrid = {}
-    for m in (1.0, 2.0, 3.0, 4.0, 5.0, 6.0):
+    for m in POSMULT_GRID:
         with Pool(workers) as p:
-            pooled = pd.concat(p.map(_pilot_chunk, [(7_300_000 + int(m * 10) * 100 + k, {"positivity_mult": m}) for k in range(chunks // 2)]))
+            pooled = pd.concat(p.map(_pilot_chunk, [(pilot_pos_seed(m, k), {"positivity_mult": m}) for k in range(chunks // 2)]))
         pgrid[m] = {"ps_min": float(pooled["ps"].min()), "ps_p01": float(pooled["ps"].quantile(0.01)),
                     "share_outside_05_95": float(((pooled["ps"] < 0.05) | (pooled["ps"] > 0.95)).mean())}
         print(f"posmult={m}: {pgrid[m]}", flush=True)
@@ -245,13 +306,17 @@ if __name__ == "__main__":
     ap.add_argument("--n", type=int, default=C.N_PATIENTS)
     ap.add_argument("--B", type=int, default=100, help="bootstrap resamples for IPTW-RMST and g-computation")
     ap.add_argument("--workers", type=int, default=10)
-    ap.add_argument("--chunks", type=int, default=40, help="truth/calibration population chunks of 6,000 patients")
+    ap.add_argument("--chunks", type=int, default=TRUTH_CHUNKS_DEFAULT, help="truth/calibration population chunks of 6,000 patients")
+    ap.add_argument("--skip-if-current", action="store_true", help="truth: do nothing if a file for the current settings exists")
     a = ap.parse_args()
     if a.cmd == "calibrate":
         calibrate(a.workers, a.chunks)
     elif a.cmd == "truth":
-        build_truth(a.cell, a.chunks, a.workers)
+        if a.skip_if_current and truth_path(a.cell, a.chunks).exists():
+            print("truth for current settings already exists:", truth_path(a.cell, a.chunks).name)
+        else:
+            build_truth(a.cell, a.chunks, a.workers)
     elif a.cmd == "run":
         run(a.cell, a.R or CELL_R.get(a.cell, 500), a.workers, a.n, a.B)
     else:
-        summarise(a.cell)
+        summarise(a.cell, a.chunks)
