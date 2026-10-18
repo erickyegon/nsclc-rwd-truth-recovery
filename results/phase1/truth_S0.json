@@ -1,0 +1,19 @@
+{
+  "n_population": 2519,
+  "m_draws": 20,
+  "effect": -0.35,
+  "rmst_diff_24": 2.2498129713872514,
+  "rmst_diff_24_mcse": 0.04919934788761855,
+  "surv_diff_24": 0.10774116712981341,
+  "surv_diff_24_mcse": 0.0025634033332708277,
+  "rmst_diff_12": 0.8704452288082617,
+  "rmst_diff_12_mcse": 0.024613275438907366,
+  "surv_diff_12": 0.11339817387852322,
+  "surv_diff_12_mcse": 0.0029743956885146757,
+  "marginal_log_hr": -0.30205577909314535,
+  "marginal_log_hr_se_approx": 0.012713421164782645,
+  "conditional_log_hr": -0.35,
+  "rmst_diff_24_analytic": 2.2192476896762754,
+  "rmst_diff_12_analytic": 0.862365116777769,
+  "opts": {}
+}

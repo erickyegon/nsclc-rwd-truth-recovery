@@ -53,6 +53,20 @@ def _sig(x: float) -> float:
     return 1.0 / (1.0 + np.exp(-x))
 
 
+def _io_prob(ecog, pdl1, lp, pos_mult=1.0, conf_gamma=0.0, lp_ms=None) -> float:
+    """P(IO-containing first line | treated, IO era). Defaults give the original expression unchanged.
+
+    pos_mult > 1 steepens the ECOG / PD-L1 terms (positivity stress). conf_gamma > 0 lowers the probability for patients
+    with a worse prognosis (higher linear predictor lp), adding confounding through every measured prognostic variable
+    (age, ECOG, stage, brain metastases, comorbidity, sex, histology, EGFR), not only ECOG.
+    """
+    if pos_mult == 1.0 and conf_gamma == 0.0:
+        return _sig(0.9 - 0.5 * ecog + 0.9 * (pdl1 >= 50) - 0.4 * (pdl1 < 1))
+    mean, sd = lp_ms if lp_ms else (C.LP_MEAN, C.LP_SD)
+    z = (lp - mean) / sd
+    return _sig(0.9 + pos_mult * (-0.5 * ecog + 0.9 * (pdl1 >= 50) - 0.4 * (pdl1 < 1)) - conf_gamma * z)
+
+
 def _weibull(rng, lp: float, k: float, scale0: float) -> float:
     """Weibull PH draw (days). scale0 = median at lp=0."""
     lam = np.log(2) / scale0 ** k
@@ -126,8 +140,14 @@ class _Rows:
         self.encs, self.procs, self.truth_lines, self.truth_pat = [], [], [], []
 
 
-def _gen_nsclc(rng, pid, R: _Rows, cutoff):
-    t = C.TRUE_LOG_HR
+def _gen_nsclc(rng, pid, R: _Rows, cutoff, opts=None):
+    opts = opts or {}                       # scenario options; every default reproduces the original generator exactly
+    t = dict(C.TRUE_LOG_HR)
+    if "io_chemo_effect" in opts:           # S3: true conditional log-HR of IO + chemo vs chemo
+        t["io_chemo_vs_chemo"] = float(opts["io_chemo_effect"])
+    pos_mult = float(opts.get("positivity_mult", 1.0))      # S2: multiplies the ECOG / PD-L1 terms of the IO assignment logit
+    conf_gamma = float(opts.get("confounding_gamma", 0.0))  # S1: assignment depends on the standardised prognostic score
+    lp_ms = (opts["lp_mean"], opts["lp_sd"]) if "lp_mean" in opts else None   # pilot override of config.LP_MEAN / LP_SD
     dx = pd.Timestamp("2015-01-01") + TD(days=int(rng.integers(0, 3100)))
     age = float(np.clip(rng.normal(68, 9), 35, 92))
     birth = dx - TD(days=int(age * 365.25))
@@ -198,7 +218,7 @@ def _gen_nsclc(rng, pid, R: _Rows, cutoff):
         if treated:
             if egfr and rng.random() < 0.85:
                 regimen_1l = "osimertinib" if era_io else "erlotinib"
-            elif era_io and rng.random() < _sig(0.9 - 0.5 * ecog + 0.9 * (pdl1 >= 50) - 0.4 * (pdl1 < 1)):
+            elif era_io and rng.random() < _io_prob(ecog, pdl1, lp, pos_mult, conf_gamma, lp_ms):
                 regimen_1l = "io_mono" if (pdl1 >= 50 and rng.random() < 0.5) else "io_chemo"
             else:
                 regimen_1l = "chemo"
@@ -333,14 +353,17 @@ def _gen_other(rng, pid, kind, R, cutoff):
 
 
 def generate(n: int = C.N_PATIENTS, seed: int = C.SEED, raw_dir: Path = C.RAW_DIR,
-             truth_dir: Path = C.TRUTH_DIR) -> dict[str, pd.DataFrame]:
+             truth_dir: Path = C.TRUTH_DIR, opts: dict | None = None) -> dict[str, pd.DataFrame]:
     rng = np.random.default_rng(seed)
     cutoff = pd.Timestamp(C.DATA_CUTOFF)
     R = _Rows()
     kinds = rng.choice(["nsclc", "sclc", "breast", "crc", "none"], size=n, p=[0.62, 0.07, 0.10, 0.09, 0.12])
     for i, k in enumerate(kinds):
         pid = f"P{i:06d}"
-        (_gen_nsclc if k == "nsclc" else lambda r, p, rr, c, _k=k: _gen_other(r, p, _k, rr, c))(rng, pid, R, cutoff)
+        if k == "nsclc":
+            _gen_nsclc(rng, pid, R, cutoff, opts)
+        else:
+            _gen_other(rng, pid, k, R, cutoff)
 
     f = lambda s: pd.to_datetime(pd.Series(s)).dt.strftime("%Y-%m-%d")      # noqa: E731
     patients = pd.DataFrame(R.patients, columns=["Id", "BIRTHDATE", "DEATHDATE", "GENDER", "RACE", "_kind"]).drop(columns="_kind")
@@ -368,6 +391,7 @@ def generate(n: int = C.N_PATIENTS, seed: int = C.SEED, raw_dir: Path = C.RAW_DI
     tl.to_csv(truth_dir / "truth_lines.csv", index=False)
     pd.DataFrame(R.truth_pat).to_csv(truth_dir / "truth_patients.csv", index=False)
     (truth_dir / "truth_params.json").write_text(json.dumps(C.TRUE_LOG_HR, indent=2))
+    (truth_dir / "scenario_opts.json").write_text(json.dumps(opts or {}, indent=2))
     return tables
 
 
