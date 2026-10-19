@@ -9,29 +9,23 @@ import pytest
 from lifelines import KaplanMeierFitter
 from lifelines.utils import restricted_mean_survival_time
 
+from hashing import content_hash
 from oncrwd import generate, metrics, rmst, truth
 from oncrwd import config as C
 
-# SHA-256 of the raw tables + truth tables of generate(n=800, seed=7), computed from the ORIGINAL generator (the code on main
-# before the scenario options existed) and identical for the branch code with default options. The hash covers file names and
-# file CONTENT with Windows line endings normalised to LF (pandas writes CSV with the operating system's line ending), so the
-# test is platform-independent. The value was computed on Windows from the original code; it was not regenerated on Linux.
-BASELINE_SHA256 = "8dced35417b0c91d4694928f85318edc657d4cf69b6814a1cd6af20490f5be58"
-CRLF, LF = bytes([13, 10]), bytes([10])
+# Platform-independent content hash (see tests/hashing.py) of generate(n=800, seed=7), computed on Windows from the ORIGINAL
+# generator (the code on main before the scenario options existed). The branch code with default options gives the same value.
+# It was not regenerated on Linux. Line endings are normalised and timestamps in truth_patients.csv are compared at day level
+# because Windows and Linux differ in the last floating-point bits of the generator's survival times.
+BASELINE_SHA256 = "6091054e4ef5b7a3171fa636f9e3eba316f3a62a2c5cf3bf2769e535c2f40ebb"
 
 
 # ----------------------------------------------------------------------------- data integrity
 def test_default_options_reproduce_original_generator_exactly():
     d = Path(tempfile.mkdtemp())
     generate.generate(n=800, seed=7, raw_dir=d / "raw", truth_dir=d / "truth")
-    h = hashlib.sha256()
-    per_file = {}
-    for f in sorted((d / "raw").glob("*.csv")) + [d / "truth" / "truth_patients.csv", d / "truth" / "truth_lines.csv"]:
-        content = f.read_bytes().replace(CRLF, LF)
-        per_file[f.name] = hashlib.sha256(content).hexdigest()[:12]
-        h.update(f.name.encode())
-        h.update(content)
-    assert h.hexdigest() == BASELINE_SHA256, f"per-file content hashes: {per_file}"
+    digest, per_file = content_hash(d / "raw", d / "truth")
+    assert digest == BASELINE_SHA256, f"per-file content hashes: {per_file}"
 
 
 def test_io_probability_defaults_and_monotonicity():
