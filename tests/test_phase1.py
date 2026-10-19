@@ -12,9 +12,12 @@ from lifelines.utils import restricted_mean_survival_time
 from oncrwd import generate, metrics, rmst, truth
 from oncrwd import config as C
 
-# SHA-256 of the raw tables + truth tables of generate(n=800, seed=7) recorded from the ORIGINAL generator (before the
-# scenario options existed). The default options must reproduce it exactly so earlier results stay reproducible.
-BASELINE_SHA256 = "056584f82bbc2a6343c88c4d302867ae893930e300c0e6331085e68232085f6b"
+# SHA-256 of the raw tables + truth tables of generate(n=800, seed=7), computed from the ORIGINAL generator (the code on main
+# before the scenario options existed) and identical for the branch code with default options. The hash covers file names and
+# file CONTENT with Windows line endings normalised to LF (pandas writes CSV with the operating system's line ending), so the
+# test is platform-independent. The value was computed on Windows from the original code; it was not regenerated on Linux.
+BASELINE_SHA256 = "8dced35417b0c91d4694928f85318edc657d4cf69b6814a1cd6af20490f5be58"
+CRLF, LF = bytes([13, 10]), bytes([10])
 
 
 # ----------------------------------------------------------------------------- data integrity
@@ -23,7 +26,8 @@ def test_default_options_reproduce_original_generator_exactly():
     generate.generate(n=800, seed=7, raw_dir=d / "raw", truth_dir=d / "truth")
     h = hashlib.sha256()
     for f in sorted((d / "raw").glob("*.csv")) + [d / "truth" / "truth_patients.csv", d / "truth" / "truth_lines.csv"]:
-        h.update(f.read_bytes())
+        h.update(f.name.encode())
+        h.update(f.read_bytes().replace(CRLF, LF))
     assert h.hexdigest() == BASELINE_SHA256
 
 
