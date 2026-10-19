@@ -25,10 +25,13 @@ def test_default_options_reproduce_original_generator_exactly():
     d = Path(tempfile.mkdtemp())
     generate.generate(n=800, seed=7, raw_dir=d / "raw", truth_dir=d / "truth")
     h = hashlib.sha256()
+    per_file = {}
     for f in sorted((d / "raw").glob("*.csv")) + [d / "truth" / "truth_patients.csv", d / "truth" / "truth_lines.csv"]:
+        content = f.read_bytes().replace(CRLF, LF)
+        per_file[f.name] = hashlib.sha256(content).hexdigest()[:12]
         h.update(f.name.encode())
-        h.update(f.read_bytes().replace(CRLF, LF))
-    assert h.hexdigest() == BASELINE_SHA256
+        h.update(content)
+    assert h.hexdigest() == BASELINE_SHA256, f"per-file content hashes: {per_file}"
 
 
 def test_io_probability_defaults_and_monotonicity():

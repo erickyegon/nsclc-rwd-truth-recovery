@@ -17,5 +17,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -r requirements.txt
+      # constrain to the exact versions that produced the results (requirements-lock.txt) so byte-level checks are comparable
+      - run: pip install -r requirements.txt -c requirements-lock.txt
       - run: python -m pytest -q
