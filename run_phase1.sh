@@ -4,7 +4,7 @@ set -u
 cd "$(dirname "$0")"
 PY="${PYTHON:-python}"
 for cell in S0 S3_null S3_m070 S3_p020 S1_mod S1_strong S2_mod S2_severe; do
-  [ -f results/phase1/truth_$cell.json ] || $PY scenario_study.py truth --cell $cell --workers 10 --chunks 40
+  $PY scenario_study.py truth --cell $cell --workers 10 --skip-if-current
 done
 $PY scenario_study.py run --cell S0 --R 1000 --workers 10
 for cell in S3_null S3_m070 S3_p020 S1_mod S1_strong S2_mod S2_severe; do
