@@ -1,0 +1,5 @@
+cell,method,n_pairs,max_abs_est_diff,mean_log_se_ratio,mcse_log_se_ratio,coverage_original,coverage_independent,coverage_diff,mcse_coverage_diff,rule_i,rule_ii,rule_iii
+S1_strong,rmst12_gcomp,100,0.0,0.006067322581857691,0.011759367595291252,0.95,0.97,0.02,0.019999999999999997,True,True,True
+S1_strong,rmst12_iptw,100,0.0,-0.0063027143771038786,0.009658512828925325,0.96,0.95,-0.01,0.017378728435078386,True,True,True
+S1_strong,rmst24_gcomp,100,0.0,-0.0032703547003101806,0.009616519421702236,0.95,0.93,-0.02,0.019999999999999997,True,True,True
+S1_strong,rmst24_iptw,100,0.0,-0.007546934257731893,0.010851950659652195,0.96,0.96,0.0,0.01421338109037403,True,True,True

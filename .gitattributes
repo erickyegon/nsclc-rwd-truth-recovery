@@ -1,0 +1,5 @@
+# Normalise line endings: LF in the repository and in working copies on every platform.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.pdf binary

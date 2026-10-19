@@ -1,0 +1,7 @@
+# Exact versions that produced the Phase 1 results (see results/phase1/environment.txt). Python 3.11.9.
+# Install with:  pip install -r requirements-lock.txt   (requirements.txt gives the supported ranges)
+numpy==2.4.6
+pandas==2.3.3
+scipy==1.17.1
+scikit-learn==1.9.1
+lifelines==0.30.3

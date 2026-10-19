@@ -1,0 +1,8 @@
+# Software environment that produced the Phase 1 (P1-P4) study results, recorded 2026-10-18
+python 3.11.9 Windows-10-10.0.26200-SP0
+numpy 2.4.6
+pandas 2.3.3
+scipy 1.17.1
+sklearn 1.9.1
+lifelines 0.30.3
+# requirements-lock.txt repeats these exact versions; requirements.txt allows scikit-learn>=1.9,<1.10.

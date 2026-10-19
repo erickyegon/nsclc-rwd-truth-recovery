@@ -37,3 +37,12 @@ TRUE_LOG_HR = {
     "egfr_positive": -0.15,
     "second_line_receipt": 0.0,    # NULL by construction -> used for the immortal-time-bias demo
 }
+
+# Standardisation of the prognostic linear predictor used by the confounding scenario (S1). Estimated once from the
+# analysis-eligible population of the baseline generator (see docs/estimands.md, "Calibration"); values from the pilot run in results/phase1/calibration.json (40 chunks of 6,000, seeds 7,100,000+).
+LP_MEAN = 0.8510367923036154
+LP_SD = 0.4798917339599047
+
+# Restricted-mean-survival-time horizons (months): 24 is primary in every scenario, 12 is secondary everywhere.
+TAU_PRIMARY = 24.0
+TAU_SECONDARY = 12.0

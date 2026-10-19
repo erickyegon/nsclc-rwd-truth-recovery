@@ -1,7 +1,7 @@
 numpy>=1.26
 pandas>=2.0
 scipy>=1.11
-scikit-learn>=1.4
+scikit-learn>=1.9,<1.10
 lifelines>=0.28
 matplotlib>=3.8
 pytest>=8.0
