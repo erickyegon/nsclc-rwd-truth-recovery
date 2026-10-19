@@ -1,5 +1,4 @@
 """Phase 1 tests, organised by what they establish (software correctness, data integrity, statistical validity)."""
-import sys
 import tempfile
 from pathlib import Path
 
@@ -9,35 +8,33 @@ import pytest
 from lifelines import KaplanMeierFitter
 from lifelines.utils import restricted_mean_survival_time
 
-from hashing import content_hash
+import legacy_generate
+from hashing import strict_hash
 from oncrwd import generate, metrics, rmst, truth
 from oncrwd import config as C
 
-# Platform-independent content hash (see tests/hashing.py) of generate(n=800, seed=7), computed on Windows from the ORIGINAL
-# generator (the code on main before the scenario options existed). The branch code with default options gives the same value.
-# It was not regenerated on Linux. Line endings are normalised and timestamps in truth_patients.csv are compared at day level
-# because Windows and Linux differ in the last floating-point bits of the generator's survival times.
-BASELINE_SHA256 = "6091054e4ef5b7a3171fa636f9e3eba316f3a62a2c5cf3bf2769e535c2f40ebb"
+# Why no stored hash: byte-identical output is not guaranteed across machines. CI showed the same code, Python and package versions
+# giving a different truth_lines.csv on some Linux runners and not others (last-bit floating-point differences, most likely from
+# CPU-dependent numpy kernels). So "the default options reproduce the original generator" is tested on ONE machine, in one process:
+# the current generator against a frozen copy of the original (tests/legacy_generate.py, main at 0bca3a4).
 
 
 # ----------------------------------------------------------------------------- data integrity
-@pytest.mark.skipif(sys.version_info[:2] != (3, 11), reason=(
-    "the baseline was recorded under Python 3.11 (the locked environment); it matches on Windows and Linux for 3.11, while "
-    "Python 3.12 gives a different truth_lines.csv (cause not investigated). Other versions run the equivalence test below."))
 def test_default_options_reproduce_original_generator_exactly():
-    d = Path(tempfile.mkdtemp())
-    generate.generate(n=800, seed=7, raw_dir=d / "raw", truth_dir=d / "truth")
-    digest, per_file = content_hash(d / "raw", d / "truth")
-    assert digest == BASELINE_SHA256, f"per-file content hashes: {per_file}"
+    d1, d2 = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+    legacy_generate.generate(n=800, seed=7, raw_dir=d1 / "raw", truth_dir=d1 / "truth")
+    generate.generate(n=800, seed=7, raw_dir=d2 / "raw", truth_dir=d2 / "truth")
+    (h1, f1), (h2, f2) = strict_hash(d1 / "raw", d1 / "truth"), strict_hash(d2 / "raw", d2 / "truth")
+    assert h1 == h2, f"legacy {f1} vs current {f2}"
 
 
 def test_explicit_default_options_equal_implicit_defaults():
-    """Runs on every Python version: spelling out the default scenario options must not change the generator's output."""
+    """Spelling out the default scenario options must not change the generator's output."""
     d1, d2 = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
     generate.generate(n=800, seed=7, raw_dir=d1 / "raw", truth_dir=d1 / "truth")
     generate.generate(n=800, seed=7, raw_dir=d2 / "raw", truth_dir=d2 / "truth",
                       opts={"io_chemo_effect": C.TRUE_LOG_HR["io_chemo_vs_chemo"], "positivity_mult": 1.0, "confounding_gamma": 0.0})
-    assert content_hash(d1 / "raw", d1 / "truth")[0] == content_hash(d2 / "raw", d2 / "truth")[0]
+    assert strict_hash(d1 / "raw", d1 / "truth")[0] == strict_hash(d2 / "raw", d2 / "truth")[0]
 
 
 def test_io_probability_defaults_and_monotonicity():
