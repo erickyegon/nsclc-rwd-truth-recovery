@@ -1,0 +1,38 @@
+name: crossplatform
+
+# Regenerates the first N Phase 1 replicates on Linux and compares them with the rows produced on Windows during the study
+# (results/phase1/crossplatform_reference_windows*.csv) against a tolerance fixed in advance (see crossplatform_check.py).
+# Pull requests: 5 seeds per cell. Manual run: choose the number of seeds (the study check used 20).
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: "Replicates per cell"
+        default: "20"
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: [S0, S3_null]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt -c requirements-lock.txt
+      - name: Regenerate replicates on Linux
+        run: python crossplatform_check.py run --cell ${{ matrix.cell }} --N ${{ github.event.inputs.seeds || 5 }} --workers 2 --out new_${{ matrix.cell }}.csv
+      - name: Compare with the Windows rows
+        run: python crossplatform_check.py compare --cell ${{ matrix.cell }} --new new_${{ matrix.cell }}.csv --summary "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-replicates-${{ matrix.cell }}
+          path: |
+            new_${{ matrix.cell }}.csv
+            new_${{ matrix.cell }}.diag.csv
